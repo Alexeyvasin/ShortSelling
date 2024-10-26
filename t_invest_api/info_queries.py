@@ -3,7 +3,7 @@ import os
 import asyncio
 import logging
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from shutil import which
 
 import requests_async
@@ -17,16 +17,16 @@ except ImportError:
 load_dotenv()
 
 async def get_tech_analysis(
-        indicator_type='INDICATOR_TYPE_SMA',
+        indicator_type='INDICATOR_TYPE_RSI',
         instrument_uid=None,
         ticker='IMOEXF',
         from_time=None,
         to_time=None,
-        interval='INDICATOR_INTERVAL_ONE_DAY',
-        type_of_price='TYPE_OF_PRICE_CLOSE',
-        length=50,
-        nano=6,
-        units=6,
+        interval='INDICATOR_INTERVAL_ONE_HOUR',
+        type_of_price='TYPE_OF_PRICE_HIGH',
+        length=14,
+        nano=9,
+        units=9,
         fast_length=0,
         slow_length=0,
         signal_smoothing=0
@@ -36,7 +36,7 @@ async def get_tech_analysis(
         instrument_uid = (await get_instruments(ticker))[0]['uid']
         print('*uid', instrument_uid)
     if from_time is None:
-        from_time = datetime.now(timezone.utc).isoformat(
+        from_time = (datetime.now(timezone.utc) - timedelta(1)).isoformat(
             timespec='milliseconds'
         ).replace('+00.00', 'Z')
         if to_time is None:
@@ -59,11 +59,11 @@ async def get_tech_analysis(
                 'units': units
             }
         },
-        'smoothing': {
-            'fastLength': fast_length,
-            'slowLength': slow_length,
-            'signalSmoothing': signal_smoothing
-        }
+        # 'smoothing': {
+        #     'fastLength': fast_length,
+        #     'slowLength': slow_length,
+        #     'signalSmoothing': signal_smoothing
+        # }
 
     }
 
@@ -111,7 +111,9 @@ async def get_etfs(ticker=None) -> dict:
     return answer
 
 async def main():
-    responses = await asyncio.gather(get_tech_analysis(ticker='MOEX'))
+    responses = await asyncio.gather(get_tech_analysis(ticker='FIXP'))
+    for response in  responses:
+        print(response.text)
 
 
 if __name__ == "__main__":
