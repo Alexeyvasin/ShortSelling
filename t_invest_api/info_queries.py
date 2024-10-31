@@ -6,6 +6,8 @@ import json
 from datetime import datetime, timezone, timedelta
 from shutil import which
 
+import aiohttp
+import requests.exceptions
 import requests_async
 from dotenv import load_dotenv
 
@@ -32,9 +34,10 @@ async def get_tech_analysis(
         signal_smoothing=0
 
 ):
+    # print('*iuid', instrument_uid)
     if instrument_uid is  None:
         instrument_uid = (await get_instruments(ticker))[0]['uid']
-        print('*uid', instrument_uid)
+        # print('*uid', instrument_uid)
     if from_time is None:
         from_time = (datetime.now(timezone.utc) - timedelta(1)).isoformat(
             timespec='milliseconds'
@@ -68,9 +71,21 @@ async def get_tech_analysis(
     }
 
     address = f'{ADDRESS_BASE}/rest/tinkoff.public.invest.api.contract.v1.MarketDataService/GetTechAnalysis'
-    async with requests_async.Session() as session:
-        response = await session.post(address, json=data,  headers=HEAD, verify=False)
-        return response
+    async with aiohttp.ClientSession() as session:
+        try:
+            response = await session.post(
+                address,
+                json=data,
+                headers=HEAD,
+                ssl=False,
+                timeout=aiohttp.ClientTimeout(total=60)
+            )
+            res = await response.text()
+            print('*res', res)
+            return res
+        except aiohttp.ClientError as e:
+            print(f"Error fetching shares: {e}")
+            return '{}'
 
 async def get_instruments(ticker: str = None) -> list:
     responses = await asyncio.gather(
@@ -79,7 +94,7 @@ async def get_instruments(ticker: str = None) -> list:
     )
     instruments = []
     for response in responses:
-        instruments.extend(json.loads(response.text)['instruments'])
+        instruments.extend(json.loads(response)['instruments'])
     if ticker:
         for instrument in instruments:
             if instrument['ticker'] == ticker.upper():
@@ -94,10 +109,21 @@ async def get_shares(ticker=None) -> dict:
         "instrumentStatus": "INSTRUMENT_STATUS_UNSPECIFIED",
         "instrumentExchange": "INSTRUMENT_EXCHANGE_UNSPECIFIED"
     }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(address, json=data, headers=HEAD, ssl=False) as response:
+                res  = await response.text()
+                return res
 
-    answer = await requests_async.post(address, json=data, headers=HEAD, verify=False)
+        except aiohttp.ClientError as e:
+            print(f"Error fetching shares: {e}")
 
-    return answer
+            return '{}'
+    # try:
+    #     answer = await requests_async.post(address, json=data, headers=HEAD, verify=False)
+    # except requests.exceptions.ConnectTimeout:
+    #     return dict()
+    # return answer
 
 async def get_etfs(ticker=None) -> dict:
     address = f'{ADDRESS_BASE}/rest/tinkoff.public.invest.api.contract.v1.InstrumentsService/Etfs'
@@ -105,15 +131,25 @@ async def get_etfs(ticker=None) -> dict:
         "instrumentStatus": "INSTRUMENT_STATUS_UNSPECIFIED",
         "instrumentExchange": "INSTRUMENT_EXCHANGE_UNSPECIFIED"
     }
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(address, json=data, headers=HEAD, ssl=False, timeout=60) as response:
+                res = await response.text()
+                return res
 
-    answer = await requests_async.post(address, json=data, headers=HEAD, verify=False)
-
-    return answer
+        except aiohttp.ClientError as e:
+            print(f"Error fetching ETFs: {e}")
+            return '{}'
+    # try:
+    #     answer = await requests_async.post(address, json=data, headers=HEAD, verify=False, timeout=60)
+    # except:
+    #     answer =  dict()
+    # return answer
 
 async def main():
     responses = await asyncio.gather(get_tech_analysis(ticker='FIXP'))
     for response in  responses:
-        print(response.text)
+        print('*o', await response.text())
 
 
 if __name__ == "__main__":

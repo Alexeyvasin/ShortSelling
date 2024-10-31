@@ -22,24 +22,30 @@ async def is_overbought(instrument: dict, semaphore) -> None:
             from_time=three_hours_ago.isoformat(timespec='milliseconds').replace('+00.00', 'Z'),
             length=14
         )
+
         )
-        if not rsi_indicator:
+        res = rsi_indicator[0]
+        print('*res', res)
+        if not res:
             print('*instrument', instrument)
-            print('*rsi.text', rsi_indicator[0].text)
+            print('*res', res)
             print('*******************')
             return
         # print(instrument)
         # print(json.loads(rsi[0].text)['technicalIndicators'])
-        if res := json.loads(rsi_indicator[0].text)['technicalIndicators']:
-            if int(res[-1]['signal']['units']) > 70:
-                print(instrument)
-                await sender(instrument['ticker'])
-                # return res
-
+        else:
+            try:
+                if res := json.loads(res)['technicalIndicators']:
+                    if int(res[-1]['signal']['units']) > 70:
+                        print(instrument)
+                        await sender(instrument['ticker'])
+                        # return res
+            except:
+                pass
 
 async def rsi():
     instruments: list = await get_instruments()
-    semaphore = asyncio.Semaphore(20)
+    semaphore = asyncio.Semaphore(15)
     coro = (is_overbought(instrument, semaphore)
             for instrument in  instruments
             if instrument['ticker'] not in  settings.excluded_instruments)

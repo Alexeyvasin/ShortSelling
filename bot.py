@@ -108,6 +108,7 @@ async def set_exclude_instruments(message: types.Message, state: FSMContext):
 
 async def main():
     from schedule.every_time import run_every_hour
+    await bot.delete_webhook(drop_pending_updates=True)
     await asyncio.gather(dp.start_polling(bot), run_every_hour(7))
 
 
